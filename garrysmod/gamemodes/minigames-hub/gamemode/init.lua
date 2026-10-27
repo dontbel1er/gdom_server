@@ -68,7 +68,31 @@ local function SendVoteData(phase)
 end
 
 -- ==========================================
--- ПЕРЕКЛЮЧЕНИЕ НА КАРТУ / ХАБ
+-- ОЧИСТКА ЧУЖИХ ХУКОВ
+-- ==========================================
+-- В GMod хуки НЕ очищаются при смене gamemode.
+-- Хуки из других режимов остаются активными и могут ломать игру
+-- (например отключать урон). Удаляем их перед переключением.
+
+local FOREIGN_HOOKS = {
+    ["PlayerShouldTakeDamage"] = { "Flood_PlayerShouldTakeDamge" },
+    ["EntityTakeDamage"] = { "PhysboxTakeDamage", "PH_EntityTakeDamage", "unstuckblocker" },
+    ["EntityRemoved"] = { "PhysboxRemoved" },
+}
+
+local function ClearForeignHooks()
+    for event, names in pairs(FOREIGN_HOOKS) do
+        for _, name in ipairs(names) do
+            if hook.GetTable()[event] and hook.GetTable()[event][name] then
+                hook.Remove(event, name)
+                print("[Minigames Hub] Удалён чужой хук: " .. event .. " / " .. name)
+            end
+        end
+    end
+end
+
+-- ==========================================
+-- ПЕРЕКЛЮЧЕНИЕ НА КАРТУ
 -- ==========================================
 
 function SwitchToMap(mode, mapName)
@@ -86,6 +110,8 @@ function SwitchToMap(mode, mapName)
 
     file.Write("minigameshub_active.txt", mode)
     file.Write("minigameshub_roundtime.txt", tostring(hub.RoundTime))
+
+    ClearForeignHooks()
 
     game.ConsoleCommand("gamemode " .. mode .. "\n")
     timer.Simple(0.5, function()
